@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calliope Meet</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --accent: #6d5dfc;
+    --accent-hover: #5b4de0;
+    --red: #ef4444;
+    --green: #22c55e;
+    --yellow: #eab308;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+
+  input, select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  input::placeholder { color: #52525b; }
+
+  .row {
+    display: flex;
+    gap: 12px;
+  }
+
+  .row > .field { flex: 1; }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .btn-danger {
+    background: var(--red);
+    color: white;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .btn-secondary {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-dot.idle { background: var(--muted); }
+  .status-dot.working { background: var(--yellow); animation: pulse 1s ease-in-out infinite; }
+  .status-dot.active { background: var(--green); }
+  .status-dot.error { background: var(--red); }
+  .status-dot.ended { background: var(--muted); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .log-box {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 240px;
+    overflow-y: auto;
+    font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .log-box:empty::before {
+    content: "Logs will appear here...";
+    color: #3f3f46;
+  }
+
+  .log-line.error { color: var(--red); }
+  .log-line.success { color: var(--green); }
+
+  .hidden { display: none !important; }
+
+  .error-msg {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Calliope Meet</h1>
+  <p class="subtitle">Send a Runway avatar to any video meeting</p>
+
+  <!-- Config Card -->
+  <div class="card" id="config-card">
+    <h2>Meeting</h2>
+    <div class="field">
+      <label for="meeting-url">Meeting URL</label>
+      <input type="url" id="meeting-url" placeholder="https://zoom.us/j/123456789">
+    </div>
+
+    <h2 style="margin-top: 20px">Avatar</h2>
+    <div class="row">
+      <div class="field">
+        <label for="avatar-type">Type</label>
+        <select id="avatar-type">
+          <option value="preset">Preset</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="field" id="preset-field">
+        <label for="preset-id">Preset</label>
+        <select id="preset-id">
+          <option value="game-character">Game Character</option>
+          <option value="game-character-man">Game Character Man</option>
+          <option value="music-superstar">Music Superstar</option>
+          <option value="cat-character">Cat Character</option>
+          <option value="influencer">Influencer</option>
+          <option value="tennis-coach">Tennis Coach</option>
+          <option value="human-resource">Human Resource</option>
+          <option value="fashion-designer">Fashion Designer</option>
+          <option value="cooking-teacher">Cooking Teacher</option>
+        </select>
+      </div>
+      <div class="field hidden" id="custom-field">
+        <label for="custom-id">Avatar ID</label>
+        <input type="text" id="custom-id" placeholder="UUID of your custom avatar">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="bot-name">Bot Display Name</label>
+      <input type="text" id="bot-name" value="Calliope Avatar">
+    </div>
+
+    <div class="field" style="margin-top: 20px">
+      <button class="btn-primary" id="start-btn" onclick="startSession()">
+        Send Avatar to Meeting
+      </button>
+    </div>
+    <div class="error-msg hidden" id="start-error"></div>
+  </div>
+
+  <!-- Active Session Card -->
+  <div class="card" id="session-card">
+    <h2>Session</h2>
+    <div class="status-bar">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-label">Idle</span>
+    </div>
+
+    <div class="log-box" id="log-box"></div>
+
+    <div class="field" style="margin-top: 16px">
+      <button class="btn-danger hidden" id="stop-btn" onclick="stopSession()">
+        End Session
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const meetingUrlInput = document.getElementById("meeting-url");
+const avatarTypeSelect = document.getElementById("avatar-type");
+const presetField = document.getElementById("preset-field");
+const customField = document.getElementById("custom-field");
+const presetIdSelect = document.getElementById("preset-id");
+const customIdInput = document.getElementById("custom-id");
+const botNameInput = document.getElementById("bot-name");
+const startBtn = document.getElementById("start-btn");
+const startError = document.getElementById("start-error");
+const stopBtn = document.getElementById("stop-btn");
+const statusDot = document.getElementById("status-dot");
+const statusLabel = document.getElementById("status-label");
+const logBox = document.getElementById("log-box");
+
+let currentSessionId = null;
+let pollInterval = null;
+
+avatarTypeSelect.addEventListener("change", () => {
+  const isCustom = avatarTypeSelect.value === "custom";
+  presetField.classList.toggle("hidden", isCustom);
+  customField.classList.toggle("hidden", !isCustom);
+});
+
+const STATUS_CONFIG = {
+  creating:    { dot: "working", label: "Creating Runway session..." },
+  polling:     { dot: "working", label: "Waiting for avatar to be ready..." },
+  consuming:   { dot: "working", label: "Getting connection details..." },
+  bot_joining: { dot: "working", label: "Bot joining meeting..." },
+  active:      { dot: "active",  label: "Avatar is live!" },
+  failed:      { dot: "error",   label: "Failed" },
+  ended:       { dot: "ended",   label: "Session ended" },
+};
+
+function setStatus(status, error) {
+  const cfg = STATUS_CONFIG[status] || { dot: "idle", label: status };
+  statusDot.className = `status-dot ${cfg.dot}`;
+  statusLabel.textContent = error ? `${cfg.label} — ${error}` : cfg.label;
+}
+
+let lastLogCount = 0;
+
+function updateLogs(logs) {
+  if (logs.length === lastLogCount) return;
+  for (let i = lastLogCount; i < logs.length; i++) {
+    const line = document.createElement("div");
+    line.className = "log-line";
+    if (logs[i].includes("Error")) line.classList.add("error");
+    if (logs[i].includes("live!")) line.classList.add("success");
+    line.textContent = logs[i];
+    logBox.appendChild(line);
+  }
+  lastLogCount = logs.length;
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+async function startSession() {
+  startError.classList.add("hidden");
+
+  const meetingUrl = meetingUrlInput.value.trim();
+  if (!meetingUrl) {
+    startError.textContent = "Please enter a meeting URL";
+    startError.classList.remove("hidden");
+    return;
+  }
+
+  const avatarType = avatarTypeSelect.value;
+  const avatarId = avatarType === "preset" ? presetIdSelect.value : customIdInput.value.trim();
+  if (!avatarId) {
+    startError.textContent = "Please select or enter an avatar";
+    startError.classList.remove("hidden");
+    return;
+  }
+
+  startBtn.disabled = true;
+  startBtn.textContent = "Starting...";
+
+  try {
+    const res = await fetch("/api/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        meetingUrl,
+        avatarType,
+        avatarId,
+        botName: botNameInput.value.trim() || "Calliope Avatar",
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    currentSessionId = data.sessionId;
+    lastLogCount = 0;
+    logBox.innerHTML = "";
+
+    stopBtn.classList.remove("hidden");
+    setStatus("creating");
+
+    pollInterval = setInterval(pollSession, 1500);
+  } catch (err) {
+    startError.textContent = err.message;
+    startError.classList.remove("hidden");
+    startBtn.disabled = false;
+    startBtn.textContent = "Send Avatar to Meeting";
+  }
+}
+
+async function pollSession() {
+  if (!currentSessionId) return;
+
+  try {
+    const res = await fetch(`/api/sessions/${currentSessionId}`);
+    const data = await res.json();
+
+    setStatus(data.status, data.error);
+    updateLogs(data.logs || []);
+
+    if (data.status === "failed" || data.status === "ended") {
+      clearInterval(pollInterval);
+      pollInterval = null;
+      resetControls();
+    }
+  } catch {
+    // ignore transient fetch errors
+  }
+}
+
+async function stopSession() {
+  if (!currentSessionId) return;
+
+  stopBtn.disabled = true;
+  stopBtn.textContent = "Stopping...";
+
+  try {
+    await fetch(`/api/sessions/${currentSessionId}/stop`, { method: "POST" });
+  } catch {
+    // ignore
+  }
+
+  // Let the poll pick up the final status
+  setTimeout(() => {
+    clearInterval(pollInterval);
+    pollInterval = null;
+    resetControls();
+    setStatus("ended");
+  }, 2000);
+}
+
+function resetControls() {
+  startBtn.disabled = false;
+  startBtn.textContent = "Send Avatar to Meeting";
+  stopBtn.classList.add("hidden");
+  stopBtn.disabled = false;
+  stopBtn.textContent = "End Session";
+  currentSessionId = null;
+}
+</script>
+
+</body>
+</html>
