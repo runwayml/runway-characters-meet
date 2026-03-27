@@ -31,6 +31,8 @@ const RECALL_BASE = `https://${RECALL_REGION}.recall.ai/api/v1`;
 const sessions = new Map();
 // WebSocket clients: sessionId → Set of bot page WebSocket connections
 const videoRelayClients = new Map();
+// Active speaker tracking: sessionId → { active: Set<participantId>, lastSpeaker: participantId | null }
+const speakerState = new Map();
 
 // ---------------------------------------------------------------------------
 // Runway API helpers (per-user credentials)
@@ -100,7 +102,7 @@ async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId) {
       chat: {
         on_bot_join: {
           send_to: "everyone",
-          message: `Hello everyone, I'm ${displayName}`,
+          message: `Hello everyone, I'm ${displayName}, A Runway Character.`,
         },
       },
       variant: {
@@ -115,7 +117,11 @@ async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId) {
           {
             type: "websocket",
             url: `${WS_PUBLIC_URL}/ws/recall-video/${sessionId}`,
-            events: ["video_separate_png.data"],
+            events: [
+              "video_separate_png.data",
+              "participant_events.speech_on",
+              "participant_events.speech_off",
+            ],
           },
         ],
       },
@@ -276,20 +282,50 @@ httpServer.on("upgrade", (request, socket, head) => {
   }
 });
 
+function getOrCreateSpeakerState(sessionId) {
+  if (!speakerState.has(sessionId)) {
+    speakerState.set(sessionId, { active: new Set(), lastSpeaker: null });
+  }
+  return speakerState.get(sessionId);
+}
+
 function handleRecallVideoConnection(ws, sessionId) {
   console.log(`[ws] Recall video connected for session ${sessionId.slice(0, 8)}`);
 
   ws.on("message", (data) => {
     try {
       const msg = JSON.parse(data.toString());
+      const state = getOrCreateSpeakerState(sessionId);
+
+      if (msg.event === "participant_events.speech_on") {
+        const pid = msg.data?.data?.participant?.id;
+        if (pid != null) {
+          state.active.add(pid);
+          state.lastSpeaker = pid;
+        }
+        return;
+      }
+
+      if (msg.event === "participant_events.speech_off") {
+        const pid = msg.data?.data?.participant?.id;
+        if (pid != null) state.active.delete(pid);
+        return;
+      }
+
       if (msg.event !== "video_separate_png.data") return;
 
       const frame = msg.data?.data;
       if (!frame?.buffer) return;
 
-      // Forward to all connected bot page clients for this session
+      const pid = frame.participant?.id;
+      const shouldRelay =
+        state.active.size === 0
+          ? pid === state.lastSpeaker || state.lastSpeaker === null
+          : state.active.has(pid);
+      if (!shouldRelay) return;
+
       const relay = {
-        participantId: frame.participant?.id,
+        participantId: pid,
         participantName: frame.participant?.name,
         type: frame.type,
         buffer: frame.buffer,
@@ -452,8 +488,9 @@ async function stopSession(session) {
     }
   }
 
-  // Clean up relay clients
+  // Clean up relay clients and speaker state
   videoRelayClients.delete(session.id);
+  speakerState.delete(session.id);
 
   session.status = "ended";
   log("Session ended");

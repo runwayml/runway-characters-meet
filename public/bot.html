@@ -103,6 +103,16 @@ async function fetchCreds(retries = 30) {
 
 const participantFrames = new Map(); // participantId → { img, name }
 const avatarAudioElements = []; // track audio elements so we can mute/unmute
+let drawScheduled = false;
+
+function scheduleDrawMeetingView() {
+  if (drawScheduled) return;
+  drawScheduled = true;
+  setTimeout(() => {
+    drawScheduled = false;
+    drawMeetingView();
+  }, 500);
+}
 
 function setupVideoRelay() {
   const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -115,7 +125,6 @@ function setupVideoRelay() {
     try {
       const frame = JSON.parse(event.data);
 
-      // Handle control messages (mute/unmute)
       if (frame.type === "control" && frame.action === "mute") {
         console.log("[bot] Mute:", frame.muted);
         avatarAudioElements.forEach((el) => { el.muted = frame.muted; });
@@ -130,7 +139,7 @@ function setupVideoRelay() {
           img,
           name: frame.participantName || `Participant ${frame.participantId}`,
         });
-        drawMeetingView();
+        scheduleDrawMeetingView();
       };
       img.src = `data:image/png;base64,${frame.buffer}`;
     } catch {

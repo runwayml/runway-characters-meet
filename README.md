@@ -32,11 +32,11 @@ npm install
 cp .env.example .env
 # Edit .env — add your Recall.ai API key
 
-# Start ngrok (separate terminal)
-ngrok http 3000
+# Start a tunnel (separate terminal)
+npx cloudflared tunnel --url http://localhost:3000
 
-# Set PUBLIC_URL in .env to your ngrok URL
-# e.g. PUBLIC_URL=https://abc123.ngrok-free.app
+# Set PUBLIC_URL in .env to the tunnel URL
+# e.g. PUBLIC_URL=https://my-tunnel-abc123.trycloudflare.com
 
 npm start
 ```
