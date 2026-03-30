@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calliope Meet</title>
+<title>Runway Characters Meet</title>
 <style>
   :root {
-    --bg: #0f1117;
-    --card: #1a1d27;
-    --border: #2a2d3a;
-    --text: #e4e4e7;
-    --muted: #71717a;
-    --accent: #6d5dfc;
-    --accent-hover: #5b4de0;
-    --red: #ef4444;
-    --green: #22c55e;
-    --yellow: #eab308;
+    --bg: #121316;
+    --card: #1D1E23;
+    --border: #29292D;
+    --text: #ffffff;
+    --muted: #A0AEC0;
+    --accent: #473FF4;
+    --accent-hover: #2c22fa;
+    --red: #FF552F;
+    --green: #61EED5;
+    --yellow: #fdbd81;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -44,6 +44,15 @@
   .subtitle {
     color: var(--muted);
     margin-bottom: 32px;
+  }
+
+  .subtitle a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .subtitle a:hover {
+    text-decoration: underline;
   }
 
   .card {
@@ -93,7 +102,7 @@
     border-color: var(--accent);
   }
 
-  input::placeholder { color: #52525b; }
+  input::placeholder { color: #7C839C; }
 
   .row {
     display: flex;
@@ -104,7 +113,7 @@
 
   .hint {
     font-size: 11px;
-    color: #52525b;
+    color: #7C839C;
     margin-top: 4px;
   }
 
@@ -134,7 +143,7 @@
   }
 
   .btn-secondary {
-    background: #555;
+    background: #32343A;
     color: white;
   }
 
@@ -199,7 +208,7 @@
 
   .log-box:empty::before {
     content: "Logs will appear here...";
-    color: #3f3f46;
+    color: #515760;
   }
 
   .log-line.error { color: var(--red); }
@@ -212,25 +221,65 @@
     font-size: 13px;
     margin-top: 8px;
   }
+
+  .instructions {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .instructions a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .instructions a:hover {
+    text-decoration: underline;
+  }
+
+  .instructions ol {
+    margin: 8px 0 0 18px;
+  }
+
+  .instructions ol li {
+    margin-bottom: 4px;
+  }
+
+  .credit-note {
+    display: inline-block;
+    font-size: 12px;
+    color: var(--green);
+    background: rgba(97, 238, 213, 0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 10px;
+  }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Calliope Meet</h1>
-  <p class="subtitle">Send a Runway avatar to any video meeting</p>
+  <h1>Runway Characters Meet</h1>
+  <p class="subtitle">Send a Runway character to any video meeting: Zoom, Google Meet, Microsoft Teams. Powered by <a href="https://runwayml.com/product/characters" target="_blank">Runway Characters</a>.</p>
 
   <!-- API Key Card -->
   <div class="card">
     <h2>Runway API</h2>
+    <div class="instructions">
+      Create a Runway API key at <a href="https://dev.runwayml.com" target="_blank">dev.runwayml.com</a>:
+      <ol>
+        <li>Sign up or log in</li>
+        <li>Go to the <strong>Manage</strong> tab in the top bar</li>
+        <li>Click the <strong>New API key</strong> button in the top-right corner</li>
+        <li>Paste it below</li>
+      </ol>
+      <div class="credit-note">When signing up you get 600 free credits = 30 minutes of video</div>
+    </div>
     <div class="field">
       <label for="runway-key">API Key</label>
       <input type="password" id="runway-key" placeholder="Your Runway API key">
       <div class="hint">Saved locally in your browser — never sent to our server except to proxy Runway calls</div>
-    </div>
-    <div class="field">
-      <label for="runway-base-url">Base URL</label>
-      <input type="text" id="runway-base-url" value="https://api.dev.runwayml.com">
     </div>
   </div>
 
@@ -239,10 +288,11 @@
     <h2>Meeting</h2>
     <div class="field">
       <label for="meeting-url">Meeting URL</label>
-      <input type="url" id="meeting-url" placeholder="https://zoom.us/j/123456789">
+      <input type="url" id="meeting-url" placeholder="Paste your meeting link here">
+      <div class="hint">e.g. https://zoom.us/j/123456789 &middot; https://meet.google.com/abc-defg-hij &middot; https://teams.microsoft.com/l/meetup-join/...</div>
     </div>
 
-    <h2 style="margin-top: 20px">Avatar</h2>
+    <h2 style="margin-top: 20px">Character</h2>
     <div class="row">
       <div class="field">
         <label for="avatar-type">Type</label>
@@ -272,13 +322,13 @@
     </div>
 
     <div class="field">
-      <label for="bot-name">Bot Display Name</label>
-      <input type="text" id="bot-name" value="Calliope Avatar">
+      <label for="bot-name">Display Name in Meeting</label>
+      <input type="text" id="bot-name" value="Runway Character">
     </div>
 
     <div class="field" style="margin-top: 20px">
       <button class="btn-primary" id="start-btn" onclick="startSession()">
-        Send Avatar to Meeting
+        Send Character to Meeting
       </button>
     </div>
     <div class="error-msg hidden" id="start-error"></div>
@@ -297,7 +347,7 @@
     <div class="row" style="margin-top: 16px">
       <div class="field">
         <button class="btn-secondary hidden" id="mute-btn" onclick="toggleMute()">
-          Mute Avatar
+          Mute Character
         </button>
       </div>
       <div class="field">
@@ -311,7 +361,6 @@
 
 <script>
 const runwayKeyInput = document.getElementById("runway-key");
-const runwayBaseUrlInput = document.getElementById("runway-base-url");
 const meetingUrlInput = document.getElementById("meeting-url");
 const avatarTypeSelect = document.getElementById("avatar-type");
 const presetField = document.getElementById("preset-field");
@@ -332,12 +381,11 @@ let pollInterval = null;
 let isMuted = false;
 
 // Persist settings in localStorage
-const STORED_KEYS = ["runway-key", "runway-base-url", "meeting-url", "bot-name"];
+const STORED_KEYS = ["runway-key", "meeting-url", "bot-name"];
 for (const key of STORED_KEYS) {
   const el = document.getElementById(key);
   const saved = localStorage.getItem(`calliope-meet:${key}`);
-  if (saved && key !== "runway-base-url") el.value = saved;
-  else if (saved && key === "runway-base-url" && saved !== "") el.value = saved;
+  if (saved) el.value = saved;
   el.addEventListener("input", () => {
     localStorage.setItem(`calliope-meet:${key}`, el.value);
   });
@@ -346,7 +394,6 @@ for (const key of STORED_KEYS) {
 function runwayHeaders() {
   return {
     "X-Runway-Key": runwayKeyInput.value.trim(),
-    "X-Runway-Base-URL": runwayBaseUrlInput.value.trim(),
   };
 }
 
@@ -358,10 +405,10 @@ avatarTypeSelect.addEventListener("change", () => {
 
 const STATUS_CONFIG = {
   creating:    { dot: "working", label: "Creating Runway session..." },
-  polling:     { dot: "working", label: "Waiting for avatar to be ready..." },
+  polling:     { dot: "working", label: "Waiting for character to be ready..." },
   consuming:   { dot: "working", label: "Getting connection details..." },
   bot_joining: { dot: "working", label: "Bot joining meeting..." },
-  active:      { dot: "active",  label: "Avatar is live!" },
+  active:      { dot: "active",  label: "Character is live!" },
   failed:      { dot: "error",   label: "Failed" },
   ended:       { dot: "ended",   label: "Session ended" },
 };
@@ -380,7 +427,7 @@ function updateLogs(logs) {
     const line = document.createElement("div");
     line.className = "log-line";
     if (logs[i].includes("Error")) line.classList.add("error");
-    if (logs[i].includes("live!")) line.classList.add("success");
+    if (logs[i].includes("live")) line.classList.add("success");
     line.textContent = logs[i];
     logBox.appendChild(line);
   }
@@ -407,7 +454,7 @@ async function startSession() {
   const avatarType = avatarTypeSelect.value;
   const avatarId = avatarType === "preset" ? presetIdSelect.value : customIdInput.value.trim();
   if (!avatarId) {
-    startError.textContent = "Please select or enter an avatar";
+    startError.textContent = "Please select or enter a character";
     startError.classList.remove("hidden");
     return;
   }
@@ -426,7 +473,7 @@ async function startSession() {
         meetingUrl,
         avatarType,
         avatarId,
-        botName: botNameInput.value.trim() || "Calliope Avatar",
+        botName: botNameInput.value.trim() || "Runway Character",
       }),
     });
 
@@ -446,7 +493,7 @@ async function startSession() {
     startError.textContent = err.message;
     startError.classList.remove("hidden");
     startBtn.disabled = false;
-    startBtn.textContent = "Send Avatar to Meeting";
+    startBtn.textContent = "Send Character to Meeting";
   }
 }
 
@@ -473,7 +520,7 @@ async function pollSession() {
 async function toggleMute() {
   if (!currentSessionId) return;
   isMuted = !isMuted;
-  muteBtn.textContent = isMuted ? "Unmute Avatar" : "Mute Avatar";
+  muteBtn.textContent = isMuted ? "Unmute Character" : "Mute Character";
   try {
     await fetch(`/api/sessions/${currentSessionId}/mute`, {
       method: "POST",
@@ -507,12 +554,12 @@ async function stopSession() {
 
 function resetControls() {
   startBtn.disabled = false;
-  startBtn.textContent = "Send Avatar to Meeting";
+  startBtn.textContent = "Send Character to Meeting";
   stopBtn.classList.add("hidden");
   stopBtn.disabled = false;
   stopBtn.textContent = "End Session";
   muteBtn.classList.add("hidden");
-  muteBtn.textContent = "Mute Avatar";
+  muteBtn.textContent = "Mute Character";
   isMuted = false;
   currentSessionId = null;
 }

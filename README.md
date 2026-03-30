@@ -1,10 +1,18 @@
 # Runway Characters Meet
 
-Send a Runway avatar to any Zoom, Google Meet, or Teams meeting as a separate participant. The avatar hears what people say and responds with real-time video and audio.
+Send a [Runway Character](https://runwayml.com/product/characters) to any Zoom, Google Meet, or Microsoft Teams meeting as a separate participant. The character hears what people say and responds with real-time video and audio.
 
-Uses [Recall.ai](https://www.recall.ai/) to join meetings and [Runway's Realtime Avatars API](https://docs.dev.runwayml.com/api/#tag/Realtime-Sessions) (GWM-1 Avatars) for the avatar.
+## Try the Demo
 
-Demo: https://runway-characters-meet-production.up.railway.app/
+**[runway-characters-meet-production.up.railway.app](https://runway-characters-meet-production.up.railway.app/)**
+
+1. **Get a Runway API key** — sign up at [dev.runwayml.com](https://dev.runwayml.com), go to the **Manage** tab, and click **New API key**. You get 600 free credits (about 30 minutes of video).
+2. **Paste your API key** into the app.
+3. **Paste a meeting URL** — any Zoom, Google Meet, or Microsoft Teams link.
+4. **Pick a character** from the preset list (or enter a custom character ID).
+5. **Click "Send Character to Meeting"** — the character will join as a participant in about 30 seconds.
+
+Once live, the character listens to the meeting audio and responds in real time. You can mute or end the session from the control panel.
 
 ## How It Works
 
@@ -13,39 +21,46 @@ Zoom / Meet / Teams
   ↕  Recall.ai bot joins as a participant
 Recall bot runs a webpage (bot.html)
   ├─ Meeting audio → getUserMedia() → published to LiveKit room
-  ├─ Runway avatar hears the meeting audio, generates response
-  ├─ Avatar video → LiveKit → rendered on the page → bot's camera feed
-  └─ Avatar audio → LiveKit → played on the page → bot's mic feed
+  ├─ Runway character hears the meeting audio, generates response
+  ├─ Character video → LiveKit → rendered on the page → bot's camera feed
+  └─ Character audio → LiveKit → played on the page → bot's mic feed
 ```
 
-## Prerequisites
+Uses [Recall.ai](https://www.recall.ai/) to join meetings and [Runway's Characters API](https://docs.dev.runwayml.com/api/#tag/Realtime-Sessions) for the character.
+
+## Run Locally
+
+### Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+
 - A [Recall.ai API key](https://www.recall.ai/)
-- A [Runway API key](https://app.runwayml.com/settings/api-keys) (each user enters their own in the UI)
+- A [Runway API key](https://dev.runwayml.com) (each user enters their own in the UI)
 
-## Local Development
+### Setup
 
 ```sh
+# Install dependencies
 npm install
 
+# Create your env file
 cp .env.example .env
 # Edit .env — add your Recall.ai API key
 
-# Start a tunnel (separate terminal)
+# Start a tunnel so Recall can reach your local server (separate terminal)
 npx cloudflared tunnel --url http://localhost:3000
 
-# Set PUBLIC_URL in .env to the tunnel URL
+# Copy the tunnel URL and set PUBLIC_URL in .env
 # e.g. PUBLIC_URL=https://my-tunnel-abc123.trycloudflare.com
 
+# Start the server
 npm start
 ```
 
-Open http://localhost:3000, enter your Runway API key, paste a meeting URL, pick an avatar, and go.
+Open [http://localhost:3000](http://localhost:3000), enter your Runway API key, paste a meeting URL, pick a character, and go.
 
 ## Deploy to Railway
 
-The easiest way to share with colleagues. Only the Recall.ai key lives on the server — each user enters their own Runway API key in the browser.
+The easiest way to share with others. Only the Recall.ai key lives on the server — each user enters their own Runway API key in the browser.
 
 1. Push to GitHub
 2. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
@@ -54,8 +69,8 @@ The easiest way to share with colleagues. Only the Recall.ai key lives on the se
    - `RECALL_REGION` — `us-west-2` (or your region)
    - No need to set `PUBLIC_URL` — Railway is auto-detected
    - No need to set `PORT` — Railway sets it automatically
-4. Deploy. Railway gives you a public URL like `calliope-meet-production.up.railway.app`
-5. Share the URL with colleagues — they just need their own Runway API key
+4. Deploy. Railway gives you a public URL.
+5. Share the URL — users just need their own Runway API key.
 
 ## Environment Variables
 
@@ -74,12 +89,12 @@ calliope-meet/
 ├── server.js           # Express server — Runway & Recall API orchestration
 ├── public/
 │   ├── index.html      # Control panel UI (users enter Runway key here)
-│   └── bot.html        # Webpage rendered by Recall's bot (LiveKit + avatar)
+│   └── bot.html        # Webpage rendered by Recall's bot (LiveKit + character)
 ├── .env.example
 └── package.json
 ```
 
 ## Cost
 
-- **Recall.ai**: ~$0.60/hour per bot (4-core variant for smooth audio)
-- **Runway**: Standard realtime session pricing (billed to each user's own API key)
+- **Runway**: 600 free credits on sign-up (~30 min of video). Standard realtime session pricing after that (billed to each user's own API key).
+- **Recall.ai**: ~$0.60/hour per bot (4-core variant for smooth audio).
