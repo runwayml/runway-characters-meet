@@ -86,11 +86,9 @@ async function recallFetch(path, { method = "GET", body } = {}) {
   return data;
 }
 
-async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId) {
-  const displayName = botName || "Calliope Avatar";
-  return recallFetch("/bot/", {
-    method: "POST",
-    body: {
+async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId, meetingPassword) {
+  const displayName = botName || "Runway Character";
+  const body = {
       meeting_url: meetingUrl,
       bot_name: displayName,
       output_media: {
@@ -125,8 +123,11 @@ async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId) {
           },
         ],
       },
-    },
-  });
+  };
+  if (meetingPassword) {
+    body.meeting_config = { zoom: { meeting_password: meetingPassword } };
+  }
+  return recallFetch("/bot/", { method: "POST", body });
 }
 
 async function deleteRecallBot(botId) {
@@ -176,7 +177,7 @@ app.post("/api/start", (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 
-  const { meetingUrl, avatarType, avatarId, botName, maxDuration } = req.body;
+  const { meetingUrl, avatarType, avatarId, botName, maxDuration, systemPrompt, meetingPassword } = req.body;
 
   if (!meetingUrl)
     return res.status(400).json({ error: "meetingUrl required" });
@@ -201,7 +202,7 @@ app.post("/api/start", (req, res) => {
   };
   sessions.set(id, session);
 
-  runSessionPipeline(session, avatar, meetingUrl, botName, maxDuration);
+  runSessionPipeline(session, avatar, meetingUrl, botName, maxDuration, systemPrompt, meetingPassword);
 
   res.json({ sessionId: id });
 });
@@ -377,7 +378,9 @@ async function runSessionPipeline(
   avatar,
   meetingUrl,
   botName,
-  maxDuration
+  maxDuration,
+  systemPrompt,
+  meetingPassword
 ) {
   const { apiKey, baseUrl } = session.runway;
 
@@ -388,6 +391,34 @@ async function runSessionPipeline(
   };
 
   try {
+    // If a systemPrompt (personality override) was provided, patch the custom
+    // avatar before creating the session so the character uses the updated
+    // personality for this meeting.
+    if (systemPrompt && avatar.type === "custom" && avatar.avatarId) {
+      log("Applying personality override to character...");
+      try {
+        await runwayFetch(baseUrl, apiKey, `/v1/avatars/${avatar.avatarId}`, {
+          method: "PATCH",
+          body: { personality: systemPrompt },
+        });
+        log("Personality updated — waiting for character to be ready...");
+
+        // Poll until the avatar is READY again (PATCH triggers re-processing)
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          await sleep(2000);
+          const a = await runwayFetch(baseUrl, apiKey, `/v1/avatars/${avatar.avatarId}`);
+          if (a.status === "READY") { log("Character is ready"); break; }
+          if (a.status === "FAILED") throw new Error(`Character processing failed: ${a.failure || ""}`);
+        }
+      } catch (patchErr) {
+        // Non-fatal: log and continue with existing personality
+        log(`Warning: could not apply personality override — ${patchErr.message}`);
+      }
+    } else if (systemPrompt && avatar.type !== "custom") {
+      log("Note: personality override is only supported for custom characters — using preset defaults");
+    }
+
     log("Creating Runway realtime session...");
     const created = await runwayFetch(
       baseUrl,
@@ -446,7 +477,8 @@ async function runSessionPipeline(
       meetingUrl,
       botName,
       botPageUrl,
-      session.id
+      session.id,
+      meetingPassword
     );
     session.recallBotId = bot.id;
     log(`Recall bot created: ${bot.id}`);
