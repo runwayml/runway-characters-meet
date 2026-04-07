@@ -103,6 +103,7 @@ async function fetchCreds(retries = 30) {
 
 const participantFrames = new Map(); // participantId → { img, name }
 const avatarAudioElements = []; // track audio elements so we can mute/unmute
+const attachedTrackSids = new Set(); // avoid duplicate track attachments
 let drawScheduled = false;
 
 function scheduleDrawMeetingView() {
@@ -216,17 +217,35 @@ async function start() {
     dynacast: false,
   });
 
-  room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+  function attachTrackIfNeeded(track) {
+    if (!track?.sid || attachedTrackSids.has(track.sid)) return;
+    attachedTrackSids.add(track.sid);
+
     if (track.kind === Track.Kind.Video) {
       track.attach(videoEl);
       videoEl.style.display = "block";
       statusOverlay.classList.add("hidden");
+      // Some hosted bot browsers need an explicit play() even after attach().
+      videoEl.play().catch(() => {});
+      console.log("[bot] Avatar video track attached:", track.sid);
     }
+
     if (track.kind === Track.Kind.Audio) {
       const audioEl = track.attach();
       audioEl.volume = 1.0;
       document.body.appendChild(audioEl);
       avatarAudioElements.push(audioEl);
+      console.log("[bot] Avatar audio track attached:", track.sid);
+    }
+  }
+
+  room.on(RoomEvent.TrackSubscribed, (track) => {
+    attachTrackIfNeeded(track);
+  });
+
+  room.on(RoomEvent.TrackPublished, (publication) => {
+    if (publication.isSubscribed && publication.track) {
+      attachTrackIfNeeded(publication.track);
     }
   });
 
@@ -252,6 +271,16 @@ async function start() {
 
   await room.connect(creds.url, creds.token);
   setStatus("Connected — waiting for avatar video...");
+
+  // Defensive backfill: if tracks were published before event handlers fired,
+  // attach anything that is already subscribed.
+  for (const participant of room.remoteParticipants.values()) {
+    for (const publication of participant.trackPublications.values()) {
+      if (publication.isSubscribed && publication.track) {
+        attachTrackIfNeeded(publication.track);
+      }
+    }
+  }
 
   // 3. Capture meeting audio and publish to LiveKit
   try {
