@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=1280, height=720">
-<title>Calliope Avatar</title>
+<title>Runway Character Meet</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
@@ -226,7 +226,7 @@ async function start() {
   const creds = await fetchCreds();
 
   // 2. Connect to LiveKit room
-  setStatus("Connecting to avatar...");
+  setStatus("Connecting to character...");
   const room = new Room({
     adaptiveStream: false,
     dynacast: false,
@@ -285,7 +285,7 @@ async function start() {
   });
 
   await room.connect(creds.url, creds.token);
-  setStatus("Connected — waiting for avatar video...");
+  setStatus("Connected — waiting for character video...");
 
   // Defensive backfill: if tracks were published before event handlers fired,
   // attach anything that is already subscribed.
