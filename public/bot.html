@@ -10,8 +10,8 @@
     width: 1280px;
     height: 720px;
     overflow: hidden;
-    background: #000;
-    font-family: system-ui, sans-serif;
+    background: #0a0a0a;
+    font-family: Arial, Helvetica, sans-serif;
   }
   #avatar-video {
     width: 100%;
@@ -26,21 +26,36 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: #ccc;
-    gap: 16px;
+    color: #fff;
+    gap: 20px;
   }
   #status-overlay.hidden { display: none; }
   .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #333;
-    border-top-color: #aaa;
+    width: 48px;
+    height: 48px;
+    border: 2.5px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #status-text { font-size: 18px; }
-  #error-text { color: #e55; font-size: 14px; max-width: 600px; text-align: center; }
+  #status-text {
+    font-size: 42px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 56px;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  #error-text {
+    color: #ff6b6b;
+    font-size: 22px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 30px;
+    max-width: 600px;
+    text-align: center;
+  }
   /* Hidden canvas for compositing meeting video to send to avatar */
   #meeting-canvas { display: none; }
 </style>

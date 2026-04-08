@@ -5,6 +5,16 @@ import { WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
 
 const app = express();
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Runway-Key, X-Runway-Base-Url");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 app.use(express.json());
 app.use(express.static("public"));
 
@@ -244,6 +254,58 @@ app.post("/api/sessions/:id/mute", (req, res) => {
   }
 
   res.json({ muted: session.muted });
+});
+
+// ---------------------------------------------------------------------------
+// External join: caller already has LiveKit creds from their own Runway flow
+// ---------------------------------------------------------------------------
+
+app.post("/api/join", async (req, res) => {
+  const { meetingUrl, livekitUrl, livekitToken, botName, meetingPassword } = req.body;
+
+  if (!meetingUrl)
+    return res.status(400).json({ error: "meetingUrl required" });
+  if (!livekitUrl || !livekitToken)
+    return res.status(400).json({ error: "livekitUrl and livekitToken required" });
+
+  const id = randomUUID();
+  const session = {
+    id,
+    status: "bot_joining",
+    error: null,
+    runwaySessionId: null,
+    recallBotId: null,
+    liveKit: { url: livekitUrl, token: livekitToken },
+    meetingUrl,
+    runway: null,
+    logs: [],
+  };
+  sessions.set(id, session);
+
+  const log = (msg) => {
+    const ts = new Date().toISOString().slice(11, 23);
+    session.logs.push(`[${ts}] ${msg}`);
+    console.log(`[${id.slice(0, 8)}] ${msg}`);
+  };
+
+  (async () => {
+    try {
+      const botPageUrl = `${PUBLIC_URL}/bot.html?session=${id}`;
+      log(`Creating Recall bot → ${meetingUrl}`);
+      log(`Video relay: ${WS_PUBLIC_URL}/ws/recall-video/${id}`);
+      const bot = await createRecallBot(meetingUrl, botName, botPageUrl, id, meetingPassword);
+      session.recallBotId = bot.id;
+      log(`Recall bot created: ${bot.id}`);
+      session.status = "active";
+      log("Bot is live in the meeting!");
+    } catch (err) {
+      session.status = "failed";
+      session.error = err.message;
+      log(`Error: ${err.message}`);
+    }
+  })();
+
+  res.json({ sessionId: id });
 });
 
 app.post("/api/sessions/:id/stop", async (req, res) => {
