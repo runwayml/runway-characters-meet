@@ -75,6 +75,9 @@
 <script>
 const { Room, RoomEvent, Track } = LivekitClient;
 
+// Track which sids we've already tried to force-subscribe, to avoid log spam
+const forcedSubscribeSids = new Set();
+
 const params = new URLSearchParams(window.location.search);
 const sessionId = params.get("session");
 
@@ -254,13 +257,46 @@ async function start() {
     }
   }
 
+  // Force-subscribe to a publication and attach if its track is already there.
+  // autoSubscribe can silently fail on Recall's hosted browser (esp. on Teams,
+  // which has a longer admission window before the page connects), leaving
+  // publications stuck in "published but not subscribed". This is the core
+  // bug behind the Teams "chat sent but no avatar video" symptom.
+  function ensureSubscribedAndAttach(publication) {
+    if (!publication) return;
+    if (publication.track) attachTrackIfNeeded(publication.track);
+    if (publication.isSubscribed) return;
+    if (publication.trackSid && forcedSubscribeSids.has(publication.trackSid)) return;
+    if (publication.trackSid) forcedSubscribeSids.add(publication.trackSid);
+    try {
+      publication.setSubscribed?.(true);
+      console.log("[bot] Force-subscribed publication:", publication.trackSid, publication.kind);
+    } catch (err) {
+      console.warn("[bot] setSubscribed failed:", err?.message);
+    }
+  }
+
+  function scanAllPublications(reason) {
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.trackPublications.values()) {
+        ensureSubscribedAndAttach(publication);
+      }
+    }
+    if (reason) console.log("[bot] Publication scan:", reason);
+  }
+
   room.on(RoomEvent.TrackSubscribed, (track) => {
     attachTrackIfNeeded(track);
   });
 
   room.on(RoomEvent.TrackPublished, (publication) => {
-    if (publication.isSubscribed && publication.track) {
-      attachTrackIfNeeded(publication.track);
+    ensureSubscribedAndAttach(publication);
+  });
+
+  room.on(RoomEvent.ParticipantConnected, (participant) => {
+    console.log("[bot] Remote participant connected:", participant.identity);
+    for (const publication of participant.trackPublications.values()) {
+      ensureSubscribedAndAttach(publication);
     }
   });
 
@@ -287,15 +323,29 @@ async function start() {
   await room.connect(creds.url, creds.token);
   setStatus("Connected — waiting for character video...");
 
-  // Defensive backfill: if tracks were published before event handlers fired,
-  // attach anything that is already subscribed.
-  for (const participant of room.remoteParticipants.values()) {
-    for (const publication of participant.trackPublications.values()) {
-      if (publication.isSubscribed && publication.track) {
-        attachTrackIfNeeded(publication.track);
+  // Defensive backfill: force-subscribe everything already in the room and
+  // attach any tracks that are ready. autoSubscribe can fail silently on
+  // Recall's hosted browser, so we don't trust isSubscribed alone.
+  scanAllPublications("post-connect backfill");
+
+  // Periodic safety net for the first 30 s after connect: if subscription or
+  // track delivery is racy (common on Teams where bot admission timing
+  // shuffles when LiveKit publishes vs when we connect), keep retrying. We
+  // stop early as soon as the avatar video is attached.
+  let scanAttempts = 0;
+  const scanTimer = setInterval(() => {
+    scanAttempts++;
+    scanAllPublications(`periodic #${scanAttempts}`);
+    const videoAttached = videoEl.style.display === "block";
+    if (videoAttached || scanAttempts >= 15) {
+      clearInterval(scanTimer);
+      if (!videoAttached) {
+        // Surface this on the bot's camera frame so it's visible in the
+        // meeting / Recall recording when the bug recurs.
+        setStatus("No character video after 30s — check LiveKit/subscription");
       }
     }
-  }
+  }, 2000);
 
   // 3. Capture meeting audio and publish to LiveKit
   try {
