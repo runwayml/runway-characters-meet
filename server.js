@@ -3,6 +3,10 @@ import express from "express";
 import { createServer } from "http";
 import { WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
+import {
+  createRecallChatConfig,
+  parseChatIntroMessage,
+} from "./meeting-chat-message.js";
 
 const app = express();
 app.use((req, res, next) => {
@@ -96,7 +100,14 @@ async function recallFetch(path, { method = "GET", body } = {}) {
   return data;
 }
 
-async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId, meetingPassword) {
+async function createRecallBot(
+  meetingUrl,
+  botName,
+  botPageUrl,
+  sessionId,
+  meetingPassword,
+  chatIntroMessage
+) {
   const displayName = botName || "Runway Character";
   const body = {
       meeting_url: meetingUrl,
@@ -107,12 +118,9 @@ async function createRecallBot(meetingUrl, botName, botPageUrl, sessionId, meeti
           config: { url: botPageUrl },
         },
       },
-      chat: {
-        on_bot_join: {
-          send_to: "everyone",
-          message: `Hello everyone, I'm ${displayName}, A Runway Character.`,
-        },
-      },
+      ...(chatIntroMessage && {
+        chat: createRecallChatConfig(chatIntroMessage),
+      }),
       variant: {
         zoom: "web_4_core",
         google_meet: "web_4_core",
@@ -187,11 +195,27 @@ app.post("/api/start", (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 
-  const { meetingUrl, avatarType, avatarId, botName, maxDuration, systemPrompt, meetingPassword } = req.body;
+  const {
+    meetingUrl,
+    avatarType,
+    avatarId,
+    botName,
+    maxDuration,
+    systemPrompt,
+    meetingPassword,
+    chatIntroMessage: rawChatIntroMessage,
+  } = req.body;
 
   if (!meetingUrl)
     return res.status(400).json({ error: "meetingUrl required" });
   if (!avatarId) return res.status(400).json({ error: "avatarId required" });
+
+  let chatIntroMessage;
+  try {
+    chatIntroMessage = parseChatIntroMessage(rawChatIntroMessage);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 
   const avatar =
     avatarType === "preset"
@@ -212,7 +236,16 @@ app.post("/api/start", (req, res) => {
   };
   sessions.set(id, session);
 
-  runSessionPipeline(session, avatar, meetingUrl, botName, maxDuration, systemPrompt, meetingPassword);
+  runSessionPipeline(
+    session,
+    avatar,
+    meetingUrl,
+    botName,
+    maxDuration,
+    systemPrompt,
+    meetingPassword,
+    chatIntroMessage
+  );
 
   res.json({ sessionId: id });
 });
@@ -261,12 +294,26 @@ app.post("/api/sessions/:id/mute", (req, res) => {
 // ---------------------------------------------------------------------------
 
 app.post("/api/join", async (req, res) => {
-  const { meetingUrl, livekitUrl, livekitToken, botName, meetingPassword } = req.body;
+  const {
+    meetingUrl,
+    livekitUrl,
+    livekitToken,
+    botName,
+    meetingPassword,
+    chatIntroMessage: rawChatIntroMessage,
+  } = req.body;
 
   if (!meetingUrl)
     return res.status(400).json({ error: "meetingUrl required" });
   if (!livekitUrl || !livekitToken)
     return res.status(400).json({ error: "livekitUrl and livekitToken required" });
+
+  let chatIntroMessage;
+  try {
+    chatIntroMessage = parseChatIntroMessage(rawChatIntroMessage);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
 
   const id = randomUUID();
   const session = {
@@ -293,7 +340,14 @@ app.post("/api/join", async (req, res) => {
       const botPageUrl = `${PUBLIC_URL}/bot.html?session=${id}`;
       log(`Creating Recall bot → ${meetingUrl}`);
       log(`Video relay: ${WS_PUBLIC_URL}/ws/recall-video/${id}`);
-      const bot = await createRecallBot(meetingUrl, botName, botPageUrl, id, meetingPassword);
+      const bot = await createRecallBot(
+        meetingUrl,
+        botName,
+        botPageUrl,
+        id,
+        meetingPassword,
+        chatIntroMessage
+      );
       session.recallBotId = bot.id;
       log(`Recall bot created: ${bot.id}`);
       session.status = "active";
@@ -442,7 +496,8 @@ async function runSessionPipeline(
   botName,
   maxDuration,
   systemPrompt,
-  meetingPassword
+  meetingPassword,
+  chatIntroMessage
 ) {
   const { apiKey, baseUrl } = session.runway;
 
@@ -540,7 +595,8 @@ async function runSessionPipeline(
       botName,
       botPageUrl,
       session.id,
-      meetingPassword
+      meetingPassword,
+      chatIntroMessage
     );
     session.recallBotId = bot.id;
     log(`Recall bot created: ${bot.id}`);

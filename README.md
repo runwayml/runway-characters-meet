@@ -14,6 +14,8 @@ Send a [Runway Character](https://runwayml.com/product/characters) to any Zoom, 
 
 Once live, the character listens to the meeting audio and responds in real time. You can mute or end the session from the control panel.
 
+Meeting chat introductions are opt-in. Enable **Post a message in meeting chat when the character joins** to send a custom message. API clients can provide the same optional `chatIntroMessage` string to `/api/start` or `/api/join`; omitted, blank, and `null` values disable the message. This is separate from the character's spoken starting script. Messages are limited to 500 characters for compatibility with every supported meeting platform.
+
 ## How It Works
 
 ```

@@ -126,6 +126,21 @@
     text-decoration: underline;
   }
 
+  .checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .checkbox-field input {
+    width: auto;
+  }
+
+  .checkbox-field label {
+    margin-bottom: 0;
+    cursor: pointer;
+  }
+
   button {
     width: 100%;
     padding: 12px;
@@ -336,6 +351,22 @@
       <input type="text" id="bot-name" value="Runway Character">
     </div>
 
+    <div class="field checkbox-field">
+      <input type="checkbox" id="send-chat-intro-message">
+      <label for="send-chat-intro-message">Post a message in meeting chat when the character joins</label>
+    </div>
+
+    <div class="field hidden" id="chat-intro-message-field">
+      <label for="chat-intro-message">Meeting Chat Message</label>
+      <input
+        type="text"
+        id="chat-intro-message"
+        maxlength="500"
+        value="Hello everyone, I'm a Runway Character."
+      >
+      <div class="hint">Supported in Zoom, Google Meet, and non-channel Microsoft Teams meetings.</div>
+    </div>
+
     <div class="field" style="margin-top: 20px">
       <button class="btn-primary" id="start-btn" onclick="startSession()">
         Send Character to Meeting
@@ -378,6 +409,9 @@ const customField = document.getElementById("custom-field");
 const presetIdSelect = document.getElementById("preset-id");
 const customIdInput = document.getElementById("custom-id");
 const botNameInput = document.getElementById("bot-name");
+const sendChatIntroMessageInput = document.getElementById("send-chat-intro-message");
+const chatIntroMessageField = document.getElementById("chat-intro-message-field");
+const chatIntroMessageInput = document.getElementById("chat-intro-message");
 const startBtn = document.getElementById("start-btn");
 const startError = document.getElementById("start-error");
 const stopBtn = document.getElementById("stop-btn");
@@ -391,7 +425,7 @@ let pollInterval = null;
 let isMuted = false;
 
 // Persist settings in localStorage
-const STORED_KEYS = ["runway-key", "meeting-url", "bot-name"];
+const STORED_KEYS = ["runway-key", "meeting-url", "bot-name", "chat-intro-message"];
 for (const key of STORED_KEYS) {
   const el = document.getElementById(key);
   const saved = localStorage.getItem(`calliope-meet:${key}`);
@@ -400,6 +434,18 @@ for (const key of STORED_KEYS) {
     localStorage.setItem(`calliope-meet:${key}`, el.value);
   });
 }
+
+const savedSendChatIntroMessage =
+  localStorage.getItem("calliope-meet:send-chat-intro-message") === "true";
+sendChatIntroMessageInput.checked = savedSendChatIntroMessage;
+chatIntroMessageField.classList.toggle("hidden", !savedSendChatIntroMessage);
+sendChatIntroMessageInput.addEventListener("change", () => {
+  localStorage.setItem(
+    "calliope-meet:send-chat-intro-message",
+    String(sendChatIntroMessageInput.checked)
+  );
+  chatIntroMessageField.classList.toggle("hidden", !sendChatIntroMessageInput.checked);
+});
 
 function runwayHeaders() {
   return {
@@ -469,6 +515,13 @@ async function startSession() {
     return;
   }
 
+  const chatIntroMessage = chatIntroMessageInput.value.trim();
+  if (sendChatIntroMessageInput.checked && !chatIntroMessage) {
+    startError.textContent = "Please enter a meeting chat message";
+    startError.classList.remove("hidden");
+    return;
+  }
+
   startBtn.disabled = true;
   startBtn.textContent = "Starting...";
 
@@ -484,6 +537,9 @@ async function startSession() {
         avatarType,
         avatarId,
         botName: botNameInput.value.trim() || "Runway Character",
+        chatIntroMessage: sendChatIntroMessageInput.checked
+          ? chatIntroMessage
+          : undefined,
       }),
     });
 
